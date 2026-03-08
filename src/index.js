@@ -8,7 +8,7 @@ dotenv.config({
 
 const startServer = async () => {
   try {
-    await connectDB();
+    // await connectDB();
     const port = process.env.PORT || 3000;
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
@@ -19,3 +19,5 @@ const startServer = async () => {
   }
 };
 startServer();
+
+
