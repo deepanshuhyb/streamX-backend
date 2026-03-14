@@ -26,6 +26,7 @@ const startServer = async () => {
 // Render free-tier spins down after 15 min of inactivity.
 // We ping our own /health route every 14 min to stay warm.
 const PING_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
+const KEEP_ALIVE_REQUEST_TIMEOUT_MS = 10 * 1000; // 10 seconds
 
 function startKeepAlive(port) {
   // Prefer the public Render URL if available, otherwise use localhost
@@ -39,6 +40,16 @@ function startKeepAlive(port) {
       console.log(`[keep-alive] Pinged ${pingUrl} → ${res.statusCode}`);
       // Ensure the response body is fully consumed so the socket can be released.
       res.resume();
+    });
+    req.setTimeout(KEEP_ALIVE_REQUEST_TIMEOUT_MS, () => {
+      console.error(
+        `[keep-alive] Ping to ${pingUrl} timed out after ${KEEP_ALIVE_REQUEST_TIMEOUT_MS}ms`
+      );
+      if (typeof req.abort === "function") {
+        req.abort();
+      } else {
+        req.destroy();
+      }
     });
     req.on("error", (err) => {
       console.error("[keep-alive] Ping failed:", err.message);
