@@ -37,6 +37,8 @@ function startKeepAlive(port) {
     const client = pingUrl.startsWith("https") ? https : http;
     const req = client.get(pingUrl, (res) => {
       console.log(`[keep-alive] Pinged ${pingUrl} → ${res.statusCode}`);
+      // Ensure the response body is fully consumed so the socket can be released.
+      res.resume();
     });
     req.on("error", (err) => {
       console.error("[keep-alive] Ping failed:", err.message);
