@@ -41,7 +41,6 @@ function startKeepAlive(port) {
     req.on("error", (err) => {
       console.error("[keep-alive] Ping failed:", err.message);
     });
-    req.end();
   }, PING_INTERVAL_MS);
 
   console.log(`[keep-alive] Self-ping scheduled every 14 min → ${pingUrl}`);
