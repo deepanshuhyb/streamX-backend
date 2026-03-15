@@ -60,13 +60,24 @@ const fetchWithRetry = async (url: string, params: any, headers: any, retries = 
   throw lastError;
 };
 
-const fetchPaginatedFromTmdb = async (endpoint: string, page: number, limit: number = 24, type: string = "movie") => {
+const GENRE_MAP: Record<string, number> = {
+  "action": 28, "adventure": 12, "animation": 16, "comedy": 35,
+  "crime": 80, "documentary": 99, "drama": 18, "family": 10751,
+  "fantasy": 14, "history": 36, "horror": 27, "music": 10402,
+  "mystery": 9648, "romance": 10749, "science fiction": 878, "sci-fi": 878,
+  "tv movie": 10770, "thriller": 53, "war": 10752, "western": 37,
+  "action & adventure": 10759, "kids": 10762, "news": 10763,
+  "reality": 10764, "sci-fi & fantasy": 10765, "soap": 10766,
+  "talk": 10767, "war & politics": 10768
+};
+
+const fetchPaginatedFromTmdb = async (endpoint: string, page: number, limit: number = 24, type: string = "movie", extraParams: any = {}) => {
   const startIndex = (page - 1) * limit;
   const tmdbStartPage = Math.floor(startIndex / 20) + 1;
   const tmdbEndPage = Math.floor((startIndex + limit - 1) / 20) + 1;
 
   const headers = getAuthHeaders();
-  const baseParams: any = { include_adult: false };
+  const baseParams: any = { include_adult: false, ...extraParams };
   if (!headers.Authorization && process.env.TMDB_KEY) {
     baseParams.api_key = process.env.TMDB_KEY;
   }
@@ -106,16 +117,38 @@ const searchGlobal = async (req: Request, res: Response): Promise<void> => {
 
 const discoverMovies = async (req: Request, res: Response): Promise<void> => {
   const page = Number(req.query.page) || 1;
+  const genre = req.query.genre as string;
+  const year = req.query.year as string;
+
+  const extraParams: any = {};
+  if (genre && GENRE_MAP[genre.toLowerCase()]) {
+    extraParams.with_genres = GENRE_MAP[genre.toLowerCase()];
+  }
+  if (year) {
+    extraParams.primary_release_year = year;
+  }
+
   try {
-    const { results, total_pages } = await fetchPaginatedFromTmdb("discover/movie", page, 24, "movie");
+    const { results, total_pages } = await fetchPaginatedFromTmdb("discover/movie", page, 24, "movie", extraParams);
     res.json({ page, totalPages: total_pages, results });
   } catch (err: any) { console.error("Movies Error:", err.message); res.status(200).json({ page, totalPages: 1, results: [] }); }
 };
 
 const discoverTV = async (req: Request, res: Response): Promise<void> => {
   const page = Number(req.query.page) || 1;
+  const genre = req.query.genre as string;
+  const year = req.query.year as string;
+
+  const extraParams: any = {};
+  if (genre && GENRE_MAP[genre.toLowerCase()]) {
+    extraParams.with_genres = GENRE_MAP[genre.toLowerCase()];
+  }
+  if (year) {
+    extraParams.first_air_date_year = year;
+  }
+
   try {
-    const { results, total_pages } = await fetchPaginatedFromTmdb("discover/tv", page, 24, "tv");
+    const { results, total_pages } = await fetchPaginatedFromTmdb("discover/tv", page, 24, "tv", extraParams);
     res.json({ page, totalPages: total_pages, results });
   } catch (err: any) { console.error("TV Error:", err.message); res.status(200).json({ page, totalPages: 1, results: [] }); }
 };
@@ -136,10 +169,17 @@ const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
   try {
     const headers = getAuthHeaders();
-    const params: any = { append_to_response: "release_dates" };
+    const params: any = { append_to_response: "release_dates,credits" };
     if (!headers.Authorization && process.env.TMDB_KEY) params.api_key = process.env.TMDB_KEY;
     const { data } = await fetchWithRetry(`${TMDB_BASE}/movie/${id}`, params, headers);
     const percentage = data.vote_average ? Math.round(Number(data.vote_average) * 10) : 0;
+
+    const cast = data.credits?.cast?.slice(0, 15).map((c: any) => ({
+      name: c.name,
+      character: c.character,
+      profilePath: c.profile_path ? getImageUrl(c.profile_path, "w185") : null
+    })) || [];
+
     res.json({
       id: data.id,
       title: data.title || data.original_title || "Unknown Title",
@@ -149,7 +189,8 @@ const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
       year: data.release_date ? String(data.release_date).substring(0, 4) : "Unknown Year",
       maturityRating: getMaturityRating(data.release_dates, null, false),
       quality: "HD",
-      isTv: false
+      isTv: false,
+      cast
     });
   } catch (err: any) { console.error("Detail Error:", err.message); res.status(404).json({ error: "Not found." }); }
 };
@@ -158,10 +199,17 @@ const getTVDetails = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
   try {
     const headers = getAuthHeaders();
-    const params: any = { append_to_response: "content_ratings" };
+    const params: any = { append_to_response: "content_ratings,credits" };
     if (!headers.Authorization && process.env.TMDB_KEY) params.api_key = process.env.TMDB_KEY;
     const { data } = await fetchWithRetry(`${TMDB_BASE}/tv/${id}`, params, headers);
     const percentage = data.vote_average ? Math.round(Number(data.vote_average) * 10) : 0;
+
+    const cast = data.credits?.cast?.slice(0, 15).map((c: any) => ({
+      name: c.name,
+      character: c.character,
+      profilePath: c.profile_path ? getImageUrl(c.profile_path, "w185") : null
+    })) || [];
+
     res.json({
       id: data.id,
       title: data.name || data.original_name || "Unknown Title",
@@ -172,7 +220,8 @@ const getTVDetails = async (req: Request, res: Response): Promise<void> => {
       maturityRating: getMaturityRating(null, data.content_ratings, true),
       quality: "HD",
       totalSeasons: data.number_of_seasons || 1,
-      isTv: true
+      isTv: true,
+      cast
     });
   } catch (err: any) { console.error("TV Detail Error:", err.message); res.status(404).json({ error: "Not found." }); }
 };
