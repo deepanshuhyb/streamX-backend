@@ -14,6 +14,27 @@ axios.defaults.timeout = 15000;
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 
+/**
+ * Returns today's date as YYYY-MM-DD string (UTC).
+ */
+const getTodayDateString = (): string => {
+  return new Date().toISOString().split("T")[0];
+};
+
+/**
+ * Check whether a media item should be visible.
+ * Hidden if: release date is in the future OR before 1970-01-01.
+ * Items with no date at all are kept (can't determine, so show them).
+ */
+const isReleasedAndModern = (item: any): boolean => {
+  const dateStr: string | undefined = item.release_date || item.first_air_date;
+  if (!dateStr) return true;               // no date → keep it
+  const year = Number(dateStr.substring(0, 4));
+  if (isNaN(year) || year < 1970) return false;  // pre-1970 → hide
+  if (dateStr > getTodayDateString()) return false; // future → hide
+  return true;
+};
+
 const getAuthHeaders = (): Record<string, string> => {
   const token = process.env.TMDB_API_READ_ACCESS_TOKEN || process.env.TMDB_KEY;
   if (!token) return {};
@@ -91,8 +112,11 @@ const fetchPaginatedFromTmdb = async (endpoint: string, page: number, limit: num
     totalResults = res.data.total_results || 0;
   }
 
+  // Filter out unreleased and pre-1970 items
+  const filteredResults = allResults.filter(isReleasedAndModern);
+
   const offsetInCombined = startIndex - (tmdbStartPage - 1) * 20;
-  const slicedResults = allResults.slice(offsetInCombined, offsetInCombined + limit);
+  const slicedResults = filteredResults.slice(offsetInCombined, offsetInCombined + limit);
 
   return {
     results: slicedResults.map(item => formatMediaItem(item, type)),
@@ -109,7 +133,10 @@ const searchGlobal = async (req: Request, res: Response): Promise<void> => {
     const params: any = { query, include_adult: false, page: 1 };
     if (!headers.Authorization && process.env.TMDB_KEY) params.api_key = process.env.TMDB_KEY;
     const { data } = await fetchWithRetry(`${TMDB_BASE}/search/multi`, params, headers);
-    const filtered = (data.results || []).filter((item: any) => item.media_type !== "person").filter((item: any) => item.poster_path || item.backdrop_path);
+    const filtered = (data.results || [])
+      .filter((item: any) => item.media_type !== "person")
+      .filter((item: any) => item.poster_path || item.backdrop_path)
+      .filter(isReleasedAndModern);
     const sorted = filtered.sort((a: any, b: any) => (b.popularity || 0) - (a.popularity || 0));
     res.json({ results: sorted.map((item: any) => formatMediaItem(item, item.media_type)) });
   } catch (err: any) { console.error("Search Error:", err.message); res.status(200).json({ results: [] }); }
@@ -120,7 +147,10 @@ const discoverMovies = async (req: Request, res: Response): Promise<void> => {
   const genre = req.query.genre as string;
   const year = req.query.year as string;
 
-  const extraParams: any = {};
+  const extraParams: any = {
+    "primary_release_date.gte": "1970-01-01",
+    "primary_release_date.lte": getTodayDateString(),
+  };
   if (genre && GENRE_MAP[genre.toLowerCase()]) {
     extraParams.with_genres = GENRE_MAP[genre.toLowerCase()];
   }
@@ -139,7 +169,10 @@ const discoverTV = async (req: Request, res: Response): Promise<void> => {
   const genre = req.query.genre as string;
   const year = req.query.year as string;
 
-  const extraParams: any = {};
+  const extraParams: any = {
+    "first_air_date.gte": "1970-01-01",
+    "first_air_date.lte": getTodayDateString(),
+  };
   if (genre && GENRE_MAP[genre.toLowerCase()]) {
     extraParams.with_genres = GENRE_MAP[genre.toLowerCase()];
   }
@@ -172,6 +205,13 @@ const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
     const params: any = { append_to_response: "release_dates,credits" };
     if (!headers.Authorization && process.env.TMDB_KEY) params.api_key = process.env.TMDB_KEY;
     const { data } = await fetchWithRetry(`${TMDB_BASE}/movie/${id}`, params, headers);
+
+    // Block unreleased or pre-1970 movies
+    if (!isReleasedAndModern(data)) {
+      res.status(404).json({ error: "This title is not yet available." });
+      return;
+    }
+
     const percentage = data.vote_average ? Math.round(Number(data.vote_average) * 10) : 0;
 
     const cast = data.credits?.cast?.slice(0, 15).map((c: any) => ({
@@ -202,6 +242,13 @@ const getTVDetails = async (req: Request, res: Response): Promise<void> => {
     const params: any = { append_to_response: "content_ratings,credits" };
     if (!headers.Authorization && process.env.TMDB_KEY) params.api_key = process.env.TMDB_KEY;
     const { data } = await fetchWithRetry(`${TMDB_BASE}/tv/${id}`, params, headers);
+
+    // Block unreleased or pre-1970 shows
+    if (!isReleasedAndModern(data)) {
+      res.status(404).json({ error: "This title is not yet available." });
+      return;
+    }
+
     const percentage = data.vote_average ? Math.round(Number(data.vote_average) * 10) : 0;
 
     const cast = data.credits?.cast?.slice(0, 15).map((c: any) => ({
@@ -251,7 +298,10 @@ const getTrending = async (req: Request, res: Response): Promise<void> => {
     const params: any = {};
     if (!headers.Authorization && process.env.TMDB_KEY) params.api_key = process.env.TMDB_KEY;
     const { data } = await fetchWithRetry(`${TMDB_BASE}/trending/all/day`, params, headers);
-    res.json({ results: (data.results || []).filter((item: any) => item.media_type !== "person").map((item: any) => formatMediaItem(item, item.media_type)) });
+    const filtered = (data.results || [])
+      .filter((item: any) => item.media_type !== "person")
+      .filter(isReleasedAndModern);
+    res.json({ results: filtered.map((item: any) => formatMediaItem(item, item.media_type)) });
   } catch (err: any) { res.status(200).json({ results: [] }); }
 };
 
