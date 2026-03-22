@@ -105,9 +105,12 @@ const GENRE_MAP: Record<string, number> = {
 };
 
 const fetchPaginatedFromTmdb = async (endpoint: string, page: number, limit: number = 24, type: string = "movie", extraParams: any = {}) => {
-  const startIndex = (page - 1) * limit;
-  const tmdbStartPage = Math.floor(startIndex / 20) + 1;
-  const tmdbEndPage = Math.floor((startIndex + limit - 1) / 20) + 1;
+  // To avoid duplicates caused by filtering shifting the pagination window, 
+  // map each frontend page to 2 disjoint TMDB pages.
+  // Frontend Page 1 -> TMDB Pages 1 & 2
+  // Frontend Page 2 -> TMDB Pages 3 & 4
+  const tmdbStartPage = (page * 2) - 1;
+  const tmdbEndPage = page * 2;
 
   const headers = getAuthHeaders();
   const baseParams: any = { include_adult: false, ...extraParams };
@@ -115,24 +118,46 @@ const fetchPaginatedFromTmdb = async (endpoint: string, page: number, limit: num
     baseParams.api_key = process.env.TMDB_KEY;
   }
 
+  // Fetch both pages concurrently
+  const pagePromises = [tmdbStartPage, tmdbEndPage].map(p =>
+    fetchWithRetry(`${TMDB_BASE}/${endpoint}`, { ...baseParams, page: p }, headers)
+  );
+
+  const responses = await Promise.all(pagePromises);
+
   let allResults: any[] = [];
   let totalResults = 0;
 
-  for (let p = tmdbStartPage; p <= tmdbEndPage; p++) {
-    const res = await fetchWithRetry(`${TMDB_BASE}/${endpoint}`, { ...baseParams, page: p }, headers);
+  for (const res of responses) {
     allResults = allResults.concat(res.data.results || []);
-    totalResults = res.data.total_results || 0;
+    if (res.data.total_results && res.data.total_results > totalResults) {
+      totalResults = res.data.total_results;
+    }
   }
 
-  // Filter out unreleased and pre-1970 items
-  const filteredResults = allResults.filter(isReleasedAndModern);
+  // Deduplicate before filtering
+  const uniqueKeys = new Set();
+  const dedupedResults = [];
+  for (const item of allResults) {
+    if (!uniqueKeys.has(item.id)) {
+      uniqueKeys.add(item.id);
+      dedupedResults.push(item);
+    }
+  }
 
-  const offsetInCombined = startIndex - (tmdbStartPage - 1) * 20;
-  const slicedResults = filteredResults.slice(offsetInCombined, offsetInCombined + limit);
+  // Filter out unreleased and pre-1970 items, and blocked items
+  const filteredResults = dedupedResults.filter(isReleasedAndModern);
+
+  // Take exactly 'limit' items (default 24) from the filtered pool
+  const slicedResults = filteredResults.slice(0, limit);
+
+  // total_pages adjustment: TMDB returns 20 items per page. 
+  // We consume 40 TMDB items (2 pages) per frontend page.
+  const logicalTotalPages = Math.ceil((totalResults / 20) / 2) || 1;
 
   return {
     results: slicedResults.map(item => formatMediaItem(item, type)),
-    total_pages: Math.ceil(totalResults / limit) || 1
+    total_pages: logicalTotalPages
   };
 };
 
