@@ -22,9 +22,7 @@ const startServer = async () => {
   }
 };
 
-// ── Render keep-alive self-ping ───────────────────────────────────────────────
-// Render free-tier spins down after 15 min of inactivity.
-// We ping our own /health route every 14 min to stay warm.
+
 const PING_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
 const KEEP_ALIVE_REQUEST_TIMEOUT_MS = 10 * 1000; // 10 seconds
 
@@ -38,7 +36,6 @@ function startKeepAlive(port) {
     const client = pingUrl.startsWith("https") ? https : http;
     const req = client.get(pingUrl, (res) => {
       console.log(`[keep-alive] Pinged ${pingUrl} → ${res.statusCode}`);
-      // Ensure the response body is fully consumed so the socket can be released.
       res.resume();
     });
     req.setTimeout(KEEP_ALIVE_REQUEST_TIMEOUT_MS, () => {

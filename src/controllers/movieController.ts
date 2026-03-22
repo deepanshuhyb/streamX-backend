@@ -27,6 +27,18 @@ const getTodayDateString = (): string => {
  * Items with no date at all are kept (can't determine, so show them).
  */
 const isReleasedAndModern = (item: any): boolean => {
+  // Block specific known problem shows (e.g., The Daily Show, Watch What Happens Live)
+  const BLOCKED_IDS = [2224, 22980];
+  if (BLOCKED_IDS.includes(item.id)) return false;
+
+  // Filter out Talk (10767) and News (10763) genres
+  if (item.genre_ids && Array.isArray(item.genre_ids)) {
+    if (item.genre_ids.includes(10767) || item.genre_ids.includes(10763)) return false;
+  }
+  if (item.genres && Array.isArray(item.genres)) {
+    if (item.genres.some((g: any) => g.id === 10767 || g.id === 10763)) return false;
+  }
+
   const dateStr: string | undefined = item.release_date || item.first_air_date;
   if (!dateStr) return true;               // no date → keep it
   const year = Number(dateStr.substring(0, 4));
@@ -124,7 +136,6 @@ const fetchPaginatedFromTmdb = async (endpoint: string, page: number, limit: num
   };
 };
 
-// endpoints...
 const searchGlobal = async (req: Request, res: Response): Promise<void> => {
   const query = req.query.q as string || req.query.query as string;
   if (!query) { res.status(200).json({ results: [] }); return; }
@@ -220,6 +231,12 @@ const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
       profilePath: c.profile_path ? getImageUrl(c.profile_path, "w185") : null
     })) || [];
 
+    // Filter out items with an empty cast
+    if (cast.length === 0) {
+      res.status(404).json({ error: "This title is not yet available (missing cast)." });
+      return;
+    }
+
     res.json({
       id: data.id,
       title: data.title || data.original_title || "Unknown Title",
@@ -256,6 +273,12 @@ const getTVDetails = async (req: Request, res: Response): Promise<void> => {
       character: c.character,
       profilePath: c.profile_path ? getImageUrl(c.profile_path, "w185") : null
     })) || [];
+
+    // Filter out items with an empty cast
+    if (cast.length === 0) {
+      res.status(404).json({ error: "This title is not yet available (missing cast)." });
+      return;
+    }
 
     res.json({
       id: data.id,
