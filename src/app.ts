@@ -3,7 +3,25 @@ import cors from "cors";
 import apiRouter from "./routes/data.route.ts";
 const app = express();
 
-app.use(cors()); // Place CORS at the very top
+const allowedOrigins = [
+  "http://localhost:5000",
+  "http://streamx-frontend.netlify.app",
+  "https://stream-x-frontend.vercel.app",
+  "https://www.streamxtv.tech"
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 app.get("/health", (_req, res) => {

@@ -27,7 +27,6 @@ const PING_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
 const KEEP_ALIVE_REQUEST_TIMEOUT_MS = 10 * 1000; // 10 seconds
 
 function startKeepAlive(port) {
-  // Prefer the public Render URL if available, otherwise use localhost
   const baseUrl =
     process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
   const pingUrl = `${baseUrl}/health`;
