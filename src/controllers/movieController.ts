@@ -135,7 +135,6 @@ const fetchPaginatedFromTmdb = async (endpoint: string, page: number, limit: num
     }
   }
 
-  // Deduplicate before filtering
   const uniqueKeys = new Set();
   const dedupedResults = [];
   for (const item of allResults) {
@@ -145,14 +144,10 @@ const fetchPaginatedFromTmdb = async (endpoint: string, page: number, limit: num
     }
   }
 
-  // Filter out unreleased and pre-1970 items, and blocked items
   const filteredResults = dedupedResults.filter(isReleasedAndModern);
 
-  // Take exactly 'limit' items (default 24) from the filtered pool
   const slicedResults = filteredResults.slice(0, limit);
 
-  // total_pages adjustment: TMDB returns 20 items per page. 
-  // We consume 40 TMDB items (2 pages) per frontend page.
   const logicalTotalPages = Math.ceil((totalResults / 20) / 2) || 1;
 
   return {
@@ -236,13 +231,13 @@ const getMaturityRating = (releaseDates: any, contentRatings: any, isTv: boolean
 
 const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
+  console.log("TMDB ID Loaded:", id);
   try {
     const headers = getAuthHeaders();
     const params: any = { append_to_response: "release_dates,credits" };
     if (!headers.Authorization && process.env.TMDB_KEY) params.api_key = process.env.TMDB_KEY;
     const { data } = await fetchWithRetry(`${TMDB_BASE}/movie/${id}`, params, headers);
 
-    // Block unreleased or pre-1970 movies
     if (!isReleasedAndModern(data)) {
       res.status(404).json({ error: "This title is not yet available." });
       return;
@@ -256,7 +251,6 @@ const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
       profilePath: c.profile_path ? getImageUrl(c.profile_path, "w185") : null
     })) || [];
 
-    // Filter out items with an empty cast
     if (cast.length === 0) {
       res.status(404).json({ error: "This title is not yet available (missing cast)." });
       return;
@@ -279,6 +273,7 @@ const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
 
 const getTVDetails = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
+  console.log("TMDB ID Loaded:", id);
   try {
     const headers = getAuthHeaders();
     const params: any = { append_to_response: "content_ratings,credits" };
