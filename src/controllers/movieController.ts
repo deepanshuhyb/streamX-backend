@@ -251,10 +251,6 @@ const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
       profilePath: c.profile_path ? getImageUrl(c.profile_path, "w185") : null
     })) || [];
 
-    if (cast.length === 0) {
-      res.status(404).json({ error: "This title is not yet available (missing cast)." });
-      return;
-    }
 
     res.json({
       id: data.id,
@@ -294,11 +290,6 @@ const getTVDetails = async (req: Request, res: Response): Promise<void> => {
       profilePath: c.profile_path ? getImageUrl(c.profile_path, "w185") : null
     })) || [];
 
-    // Filter out items with an empty cast
-    if (cast.length === 0) {
-      res.status(404).json({ error: "This title is not yet available (missing cast)." });
-      return;
-    }
 
     res.json({
       id: data.id,
