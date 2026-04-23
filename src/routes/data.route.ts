@@ -13,6 +13,8 @@ router.get("/tv/:id", tmdbController.getTVDetails);
 
 router.get("/tv/:id/season/:seasonNumber", tmdbController.getTVSeason);
 
+router.get("/genres", tmdbController.getGenres);
+
 router.get("/trending", tmdbController.getTrending);
 
 router.get("/test", (req, res) => {

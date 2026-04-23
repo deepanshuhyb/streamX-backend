@@ -74,10 +74,8 @@ const formatMediaItem = (item: any, defaultType: string = "movie") => {
   };
 };
 
-/**
- * Robust fetch with retries 
- */
-const fetchWithRetry = async (url: string, params: any, headers: any, retries = 5): Promise<any> => {
+
+const fetchWithRetry = async (url: string, params: any, headers: any, retries = 10): Promise<any> => {
   let lastError: any;
   for (let i = 0; i < retries; i++) {
     try {
@@ -103,6 +101,46 @@ const GENRE_MAP: Record<string, number> = {
   "reality": 10764, "sci-fi & fantasy": 10765, "soap": 10766,
   "talk": 10767, "war & politics": 10768
 };
+
+// Canonical genre lists exposed to the frontend
+const MOVIE_GENRES = [
+  { id: 28, name: "Action", slug: "action" },
+  { id: 12, name: "Adventure", slug: "adventure" },
+  { id: 16, name: "Animation", slug: "animation" },
+  { id: 35, name: "Comedy", slug: "comedy" },
+  { id: 80, name: "Crime", slug: "crime" },
+  { id: 99, name: "Documentary", slug: "documentary" },
+  { id: 18, name: "Drama", slug: "drama" },
+  { id: 10751, name: "Family", slug: "family" },
+  { id: 14, name: "Fantasy", slug: "fantasy" },
+  { id: 36, name: "History", slug: "history" },
+  { id: 27, name: "Horror", slug: "horror" },
+  { id: 10402, name: "Music", slug: "music" },
+  { id: 9648, name: "Mystery", slug: "mystery" },
+  { id: 10749, name: "Romance", slug: "romance" },
+  { id: 878, name: "Science Fiction", slug: "science fiction" },
+  { id: 53, name: "Thriller", slug: "thriller" },
+  { id: 10752, name: "War", slug: "war" },
+  { id: 37, name: "Western", slug: "western" },
+  { id: 10770, name: "TV Movie", slug: "tv movie" },
+];
+
+const TV_GENRES = [
+  { id: 10759, name: "Action & Adventure", slug: "action & adventure" },
+  { id: 16, name: "Animation", slug: "animation" },
+  { id: 35, name: "Comedy", slug: "comedy" },
+  { id: 80, name: "Crime", slug: "crime" },
+  { id: 99, name: "Documentary", slug: "documentary" },
+  { id: 18, name: "Drama", slug: "drama" },
+  { id: 10751, name: "Family", slug: "family" },
+  { id: 10762, name: "Kids", slug: "kids" },
+  { id: 9648, name: "Mystery", slug: "mystery" },
+  { id: 10764, name: "Reality", slug: "reality" },
+  { id: 10765, name: "Sci-Fi & Fantasy", slug: "sci-fi & fantasy" },
+  { id: 10766, name: "Soap", slug: "soap" },
+  { id: 10768, name: "War & Politics", slug: "war & politics" },
+  { id: 37, name: "Western", slug: "western" },
+];
 
 const fetchPaginatedFromTmdb = async (endpoint: string, page: number, limit: number = 24, type: string = "movie", extraParams: any = {}) => {
   // To avoid duplicates caused by filtering shifting the pagination window, 
@@ -339,4 +377,20 @@ const getTrending = async (req: Request, res: Response): Promise<void> => {
   } catch (err: any) { res.status(200).json({ results: [] }); }
 };
 
-export default { searchGlobal, discoverMovies, discoverTV, getMovieDetails, getTVDetails, getTVSeason, getTrending };
+/**
+ * GET /api/genres?type=movie|tv
+ * Returns the genre list for movies or TV shows.
+ * When no type is given, returns both.
+ */
+const getGenres = (req: Request, res: Response): void => {
+  const type = (req.query.type as string || "").toLowerCase();
+  if (type === "movie") {
+    res.json({ type: "movie", genres: MOVIE_GENRES });
+  } else if (type === "tv") {
+    res.json({ type: "tv", genres: TV_GENRES });
+  } else {
+    res.json({ movie: MOVIE_GENRES, tv: TV_GENRES });
+  }
+};
+
+export default { searchGlobal, discoverMovies, discoverTV, getMovieDetails, getTVDetails, getTVSeason, getTrending, getGenres };
