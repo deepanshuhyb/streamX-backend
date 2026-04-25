@@ -7,6 +7,7 @@ const allowedOrigins = [
   "http://localhost:5000",
   "http://streamx-frontend.netlify.app",
   "https://stream-x-frontend.vercel.app",
+  "https://streamxtv.tech",
   "https://www.streamxtv.tech",
   "https://streamxtv.hybrows.workers.dev"
 ];
