@@ -142,6 +142,7 @@ const DETAILS_QUERY = `
       bannerImage
       coverImage { extraLarge large color }
       startDate { year }
+      nextAiringEpisode { episode airingAt }
       studios(isMain: true) { nodes { name } }
       characters(perPage: 12, sort: [ROLE, RELEVANCE]) {
         edges {
@@ -274,7 +275,7 @@ const getAnimeDetails = async (req: Request, res: Response): Promise<void> => {
       maturityRating:
         m.format === "MOVIE" ? "Anime Movie" : m.format || "TV Anime",
       quality: "HD",
-      totalEpisodes: m.episodes || 1,
+      totalEpisodes: resolveTotalEpisodes(m) || 1,
       duration: m.duration ? `${m.duration}m` : null,
       status: m.status || "UNKNOWN",
       genres: m.genres || [],
@@ -288,6 +289,14 @@ const getAnimeDetails = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+const resolveTotalEpisodes = (m: any): number => {
+  if (typeof m?.episodes === "number" && m.episodes > 0) return m.episodes;
+  // Ongoing shows: AniList exposes the next airing episode number — aired count is one less.
+  const nextEp = m?.nextAiringEpisode?.episode;
+  if (typeof nextEp === "number" && nextEp > 1) return nextEp - 1;
+  return 0;
+};
+
 const getAnimeEpisodes = async (req: Request, res: Response): Promise<void> => {
   const id = Number(req.params.id);
   if (!id || isNaN(id)) {
@@ -297,7 +306,7 @@ const getAnimeEpisodes = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await fetchAniList(DETAILS_QUERY, { id });
     const m = data?.data?.Media;
-    const total = m?.episodes || 0;
+    const total = resolveTotalEpisodes(m);
     if (!total) {
       res.status(200).json({ episodes: [] });
       return;
