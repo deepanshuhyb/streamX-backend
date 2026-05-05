@@ -33,29 +33,32 @@ const ANIME_GENRES: { id: number; name: string; slug: string }[] = [
 ];
 
 const SLUG_TO_ANILIST: Record<string, string> = {
-  "action": "Action",
-  "adventure": "Adventure",
-  "comedy": "Comedy",
-  "drama": "Drama",
-  "ecchi": "Ecchi",
-  "fantasy": "Fantasy",
-  "horror": "Horror",
+  action: "Action",
+  adventure: "Adventure",
+  comedy: "Comedy",
+  drama: "Drama",
+  ecchi: "Ecchi",
+  fantasy: "Fantasy",
+  horror: "Horror",
   "mahou-shoujo": "Mahou Shoujo",
-  "mecha": "Mecha",
-  "music": "Music",
-  "mystery": "Mystery",
-  "psychological": "Psychological",
-  "romance": "Romance",
+  mecha: "Mecha",
+  music: "Music",
+  mystery: "Mystery",
+  psychological: "Psychological",
+  romance: "Romance",
   "sci-fi": "Sci-Fi",
   "slice-of-life": "Slice of Life",
-  "sports": "Sports",
-  "supernatural": "Supernatural",
-  "thriller": "Thriller",
+  sports: "Sports",
+  supernatural: "Supernatural",
+  thriller: "Thriller",
 };
 
 const stripHtml = (str: string | null | undefined): string => {
   if (!str) return "";
-  return str.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+  return str
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .trim();
 };
 
 const pickTitle = (title: any): string => {
@@ -67,6 +70,13 @@ const formatScore = (score: number | null | undefined): string => {
   if (typeof score !== "number" || isNaN(score)) return "N/A";
   return (score / 10).toFixed(1);
 };
+
+const hasCoverImage = (item: any): boolean =>
+  Boolean(
+    item?.coverImage?.extraLarge ||
+    item?.coverImage?.large ||
+    item?.coverImage?.medium,
+  );
 
 const formatAnimeCard = (item: any) => ({
   id: item.id,
@@ -80,7 +90,11 @@ const formatAnimeCard = (item: any) => ({
     NO_IMAGE,
 });
 
-const fetchAniList = async (query: string, variables: Record<string, any>, retries = 5): Promise<any> => {
+const fetchAniList = async (
+  query: string,
+  variables: Record<string, any>,
+  retries = 5,
+): Promise<any> => {
   let lastError: any;
   for (let i = 0; i < retries; i++) {
     try {
@@ -94,13 +108,15 @@ const fetchAniList = async (query: string, variables: Record<string, any>, retri
           },
           httpsAgent,
           timeout: 15000,
-        }
+        },
       );
       return res.data;
     } catch (err: any) {
       lastError = err;
       const status = err?.response?.status;
-      console.warn(`AniList Request Fail (${i + 1}/${retries}): ${err.message}`);
+      console.warn(
+        `AniList Request Fail (${i + 1}/${retries}): ${err.message}`,
+      );
       if (status === 404) throw err;
       // AniList rate limits at ~90 req/min; back off if 429
       const waitMs = status === 429 ? 2000 * (i + 1) : 1000 * (i + 1);
@@ -143,6 +159,7 @@ const DETAILS_QUERY = `
       coverImage { extraLarge large color }
       startDate { year }
       nextAiringEpisode { episode airingAt }
+      trailer { id site }
       studios(isMain: true) { nodes { name } }
       characters(perPage: 12, sort: [ROLE, RELEVANCE]) {
         edges {
@@ -210,7 +227,9 @@ const discoverAnime = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await fetchAniList(DISCOVER_QUERY, variables);
     const pageData = data?.data?.Page;
-    const results = (pageData?.media || []).map(formatAnimeCard);
+    const results = (pageData?.media || [])
+      .filter(hasCoverImage)
+      .map(formatAnimeCard);
     res.json({
       page,
       totalPages: pageData?.pageInfo?.lastPage || 1,
@@ -235,25 +254,32 @@ const getAnimeDetails = async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ error: "Anime not found." });
       return;
     }
-    const cast = (m.characters?.edges || [])
-      .slice(0, 12)
-      .map((edge: any) => {
-        const va = edge.voiceActors?.[0];
-        const node = edge.node;
-        const image =
-          va?.image?.large ||
-          va?.image?.medium ||
-          node?.image?.large ||
-          node?.image?.medium ||
-          null;
-        return {
-          name: va?.name?.full || node?.name?.full || "Unknown",
-          character: node?.name?.full || edge.role || "",
-          profilePath: image,
-        };
-      });
+    const cast = (m.characters?.edges || []).slice(0, 12).map((edge: any) => {
+      const va = edge.voiceActors?.[0];
+      const node = edge.node;
+      const image =
+        va?.image?.large ||
+        va?.image?.medium ||
+        node?.image?.large ||
+        node?.image?.medium ||
+        null;
+      return {
+        name: va?.name?.full || node?.name?.full || "Unknown",
+        character: node?.name?.full || edge.role || "",
+        profilePath: image,
+      };
+    });
 
-    const studios = (m.studios?.nodes || []).map((s: any) => s.name).filter(Boolean);
+    const studios = (m.studios?.nodes || [])
+      .map((s: any) => s.name)
+      .filter(Boolean);
+
+    // AniList exposes only youtube/dailymotion for trailers; we surface YouTube for the embed.
+    const trailerSite = (m.trailer?.site || "").toLowerCase();
+    const trailer =
+      m.trailer?.id && trailerSite === "youtube"
+        ? { key: m.trailer.id, site: "YouTube" }
+        : null;
 
     res.json({
       id: m.id,
@@ -263,10 +289,7 @@ const getAnimeDetails = async (req: Request, res: Response): Promise<void> => {
         m.coverImage?.extraLarge ||
         m.coverImage?.large ||
         NO_IMAGE,
-      coverImage:
-        m.coverImage?.extraLarge ||
-        m.coverImage?.large ||
-        NO_IMAGE,
+      coverImage: m.coverImage?.extraLarge || m.coverImage?.large || NO_IMAGE,
       description: stripHtml(m.description) || "Description unavailable.",
       rating: m.averageScore
         ? `${Math.round(m.averageScore)}% Match`
@@ -282,6 +305,7 @@ const getAnimeDetails = async (req: Request, res: Response): Promise<void> => {
       studios,
       isAnime: true,
       cast,
+      trailer,
     });
   } catch (err: any) {
     console.error("Anime Detail Error:", err.message);
@@ -342,7 +366,9 @@ const searchAnime = async (req: Request, res: Response): Promise<void> => {
       search: query,
       perPage: 24,
     });
-    const results = (data?.data?.Page?.media || []).map(formatAnimeCard);
+    const results = (data?.data?.Page?.media || [])
+      .filter(hasCoverImage)
+      .map(formatAnimeCard);
     res.json({ results });
   } catch (err: any) {
     console.error("Anime Search Error:", err.message);
@@ -350,10 +376,15 @@ const searchAnime = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-const getAnimeTrending = async (_req: Request, res: Response): Promise<void> => {
+const getAnimeTrending = async (
+  _req: Request,
+  res: Response,
+): Promise<void> => {
   try {
     const data = await fetchAniList(TRENDING_QUERY, { perPage: 24 });
-    const results = (data?.data?.Page?.media || []).map(formatAnimeCard);
+    const results = (data?.data?.Page?.media || [])
+      .filter(hasCoverImage)
+      .map(formatAnimeCard);
     res.json({ results });
   } catch (err: any) {
     console.error("Anime Trending Error:", err.message);

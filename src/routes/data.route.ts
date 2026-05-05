@@ -18,6 +18,8 @@ router.get("/genres", tmdbController.getGenres);
 
 router.get("/trending", tmdbController.getTrending);
 
+router.get("/person/:id", tmdbController.getPerson);
+
 // --- Anime (AniList) ---
 router.get("/anime", animeController.discoverAnime);
 router.get("/anime/search", animeController.searchAnime);
