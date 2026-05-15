@@ -26,7 +26,11 @@ const getTodayDateString = (): string => {
  * Hidden if: release date is in the future OR before 1970-01-01.
  * Items with no date at all are kept (can't determine, so show them).
  */
+const ALLOWED_UNRELEASED_IDS = [980431];
+
 const isReleasedAndModern = (item: any): boolean => {
+  if (ALLOWED_UNRELEASED_IDS.includes(item.id)) return true;
+
   // Block specific known problem shows (e.g., The Daily Show, Watch What Happens Live)
   const BLOCKED_IDS = [2224, 22980];
   if (BLOCKED_IDS.includes(item.id)) return false;
