@@ -1,6 +1,7 @@
 import express from "express";
 import cors, { type CorsOptions } from "cors";
 import apiRouter from "./routes/data.route.ts";
+import malRouter from "./routes/mal.route.ts";
 const app = express();
 
 const allowedOrigins = [
@@ -10,6 +11,11 @@ const allowedOrigins = [
   "https://streamxtv.tech",
   "https://www.streamxtv.tech",
   "https://streamxtv.hybrows.workers.dev",
+  "https://anime.streamxtv.hybrows.workers.dev",
+  "https://www.anime.streamxtv.hybrows.workers.dev",
+  "https://anime.streamxtv.tech",
+  "https://www.anime.streamxtv.tech",
+  "http://localhost:5001",
 ];
 
 app.use((req, _res, next) => {
@@ -65,4 +71,5 @@ app.get("/debug-origin", (req, res) => {
 });
 
 app.use("/api", apiRouter);
+app.use("/api/mal", malRouter);
 export default app;
