@@ -93,21 +93,5 @@ app.use("/api/jikan", async (req, res) => {
 });
 
 
-// Jikan Proxy Route (for schedules and browse pages)
-app.use("/api/jikan", async (req, res) => {
-  try {
-    const relativeUrl = req.url.startsWith("/") ? req.url.slice(1) : req.url;
-    const jikanUrl = `https://api.jikan.moe/v4/${relativeUrl}`;
-
-    console.log(`[Jikan Proxy] Forwarding to: ${jikanUrl}`);
-    const { data } = await axios.get(jikanUrl);
-    return res.json(data);
-  } catch (err: any) {
-    console.error("[Jikan Proxy] Error:", err?.response?.data ?? err.message);
-    return res.status(err?.response?.status ?? 500).json({
-      error: err?.response?.data?.message ?? "Jikan API error",
-    });
-  }
-});
 
 export default app;
