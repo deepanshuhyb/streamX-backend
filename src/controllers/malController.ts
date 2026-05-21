@@ -4,7 +4,7 @@
  * Token exchange (auth) uses the server-side client secret.
  */
 
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import axios from "axios";
 
 const MAL_API = "https://api.myanimelist.net/v2";
