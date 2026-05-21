@@ -1,32 +1,34 @@
 import { Router } from "express";
 import tmdbController from "../controllers/movieController.ts";
 import animeController from "../controllers/animeController.ts";
+import { cacheMiddleware } from "../middlewares/cache.ts";
 
 const router = Router();
+const cache = cacheMiddleware(600); // 10-minute cache TTL
 
-router.get("/search", tmdbController.searchGlobal);
+router.get("/search", cache, tmdbController.searchGlobal);
 
-router.get("/movies", tmdbController.discoverMovies);
-router.get("/tv", tmdbController.discoverTV);
+router.get("/movies", cache, tmdbController.discoverMovies);
+router.get("/tv", cache, tmdbController.discoverTV);
 
-router.get("/movies/:id", tmdbController.getMovieDetails);
-router.get("/tv/:id", tmdbController.getTVDetails);
+router.get("/movies/:id", cache, tmdbController.getMovieDetails);
+router.get("/tv/:id", cache, tmdbController.getTVDetails);
 
-router.get("/tv/:id/season/:seasonNumber", tmdbController.getTVSeason);
+router.get("/tv/:id/season/:seasonNumber", cache, tmdbController.getTVSeason);
 
-router.get("/genres", tmdbController.getGenres);
+router.get("/genres", cache, tmdbController.getGenres);
 
-router.get("/trending", tmdbController.getTrending);
+router.get("/trending", cache, tmdbController.getTrending);
 
-router.get("/person/:id", tmdbController.getPerson);
+router.get("/person/:id", cache, tmdbController.getPerson);
 
 // --- Anime (AniList) ---
-router.get("/anime", animeController.discoverAnime);
-router.get("/anime/search", animeController.searchAnime);
-router.get("/anime/trending", animeController.getAnimeTrending);
-router.get("/anime/genres", animeController.getAnimeGenres);
-router.get("/anime/:id", animeController.getAnimeDetails);
-router.get("/anime/:id/episodes", animeController.getAnimeEpisodes);
+router.get("/anime", cache, animeController.discoverAnime);
+router.get("/anime/search", cache, animeController.searchAnime);
+router.get("/anime/trending", cache, animeController.getAnimeTrending);
+router.get("/anime/genres", cache, animeController.getAnimeGenres);
+router.get("/anime/:id", cache, animeController.getAnimeDetails);
+router.get("/anime/:id/episodes", cache, animeController.getAnimeEpisodes);
 
 router.get("/test", (req, res) => {
   res.json({ message: "API is working!" });

@@ -2,6 +2,7 @@ import express from "express";
 import cors, { type CorsOptions } from "cors";
 import apiRouter from "./routes/data.route.ts";
 import malRouter from "./routes/mal.route.ts";
+import { cacheMiddleware } from "./middlewares/cache.ts";
 const app = express();
 
 const allowedOrigins = [
@@ -76,7 +77,7 @@ app.use("/api", apiRouter);
 app.use("/api/mal", malRouter);
 
 // Jikan Proxy Route (for schedules and browse pages)
-app.use("/api/jikan", async (req, res) => {
+app.use("/api/jikan", cacheMiddleware(600), async (req, res) => {
   try {
     const relativeUrl = req.url.startsWith("/") ? req.url.slice(1) : req.url;
     const jikanUrl = `https://api.jikan.moe/v4/${relativeUrl}`;

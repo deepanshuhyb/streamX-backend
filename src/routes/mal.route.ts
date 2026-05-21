@@ -14,6 +14,7 @@
 
 import { Router } from "express";
 import mal from "../controllers/malController.ts";
+import { cacheMiddleware } from "../middlewares/cache.ts";
 
 const router = Router();
 
@@ -24,6 +25,6 @@ router.post("/auth/refresh", mal.refreshToken);
 // ── Transparent proxy for all other MAL API paths ────────────────────────────
 // router.use() catches everything without a specific path match above.
 // The controller reads req.url (relative to /api/mal) and dispatches by method.
-router.use(mal.proxyAll);
+router.use(cacheMiddleware(300), mal.proxyAll);
 
 export default router;
