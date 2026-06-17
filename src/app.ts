@@ -16,6 +16,10 @@ const allowedOrigins = [
   "https://www.anime.streamxtv.hybrows.workers.dev",
   "https://anime.streamxtv.tech",
   "https://www.anime.streamxtv.tech",
+  "https://animextv.tech",
+  "https://www.animextv.tech",
+  "http://animextv.tech",
+  "http://www.animextv.tech",
   "http://localhost:5001",
 ];
 
@@ -39,6 +43,9 @@ const corsOptions: CorsOptions = {
       console.log("[cors] Allowed by CORS");
       return callback(null, true);
     }
+
+    // Match animextv.tech and all variants (including subdomains and workers.dev environments)
+    // const animextvPattern = /^https?:\/\/([a-z0-9-]+\.)*animextv\.(tech|hybrows\.workers\.dev)$/i;
 
     if (allowedOrigins.includes(origin)) {
       console.log("[cors] Allowed by CORS");
