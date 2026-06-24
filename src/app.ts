@@ -21,6 +21,7 @@ const allowedOrigins = [
   "http://animextv.tech",
   "http://www.animextv.tech",
   "http://localhost:5001",
+  "https://d686fea1-streamxtv.hybrows.workers.dev",
 ];
 
 app.use((req, _res, next) => {
