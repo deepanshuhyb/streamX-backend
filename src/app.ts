@@ -1,5 +1,6 @@
 import express from "express";
 import cors, { type CorsOptions } from "cors";
+import compression from "compression";
 import apiRouter from "./routes/data.route.ts";
 import malRouter from "./routes/mal.route.ts";
 import { cacheMiddleware } from "./middlewares/cache.ts";
@@ -62,6 +63,7 @@ const corsOptions: CorsOptions = {
   optionsSuccessStatus: 204,
 };
 
+app.use(compression());
 app.use(cors(corsOptions));
 app.use(express.json());
 
