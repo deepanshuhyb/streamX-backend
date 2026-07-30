@@ -441,6 +441,7 @@ const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
       year: data.release_date
         ? String(data.release_date).substring(0, 4)
         : "Unknown Year",
+      releaseDate: data.release_date || null,
       maturityRating: getMaturityRating(data.release_dates, null, false),
       quality: "HD",
       isTv: false,
@@ -501,6 +502,7 @@ const getTVDetails = async (req: Request, res: Response): Promise<void> => {
       year: data.first_air_date
         ? String(data.first_air_date).substring(0, 4)
         : "Unknown Year",
+      releaseDate: data.first_air_date || null,
       maturityRating: getMaturityRating(null, data.content_ratings, true),
       quality: "HD",
       totalSeasons: data.number_of_seasons || 1,
