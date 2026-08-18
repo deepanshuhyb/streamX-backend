@@ -19,6 +19,7 @@ router.get("/tv/:id/season/:seasonNumber", cache, tmdbController.getTVSeason);
 router.get("/genres", cache, tmdbController.getGenres);
 
 router.get("/trending", cache, tmdbController.getTrending);
+router.get("/new-releases", cache, tmdbController.getNewReleases);
 
 router.get("/person/:id", cache, tmdbController.getPerson);
 

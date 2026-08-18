@@ -227,6 +227,7 @@ const fetchPaginatedFromTmdb = async (
   }
 
   const filteredResults = dedupedResults
+    .filter((item: any) => item.media_type !== "person")
     .filter((item: any) => item.poster_path)
     .filter(isReleasedAndModern);
 
@@ -235,7 +236,9 @@ const fetchPaginatedFromTmdb = async (
   const logicalTotalPages = Math.ceil(totalResults / 20 / 2) || 1;
 
   return {
-    results: slicedResults.map((item) => formatMediaItem(item, type)),
+    results: slicedResults.map((item) =>
+      formatMediaItem(item, item.media_type || type),
+    ),
     total_pages: logicalTotalPages,
   };
 };
@@ -543,27 +546,125 @@ const getTVSeason = async (req: Request, res: Response): Promise<void> => {
 };
 
 const getTrending = async (req: Request, res: Response): Promise<void> => {
+  const page = Number(req.query.page) || 1;
+  const rawType = (req.query.type as string) || "all";
+  const type = ["all", "movie", "tv"].includes(rawType.toLowerCase())
+    ? rawType.toLowerCase()
+    : "all";
+  const timeWindow =
+    (req.query.time_window as string) === "week" ? "week" : "day";
+
   try {
-    const headers = getAuthHeaders();
-    const params: any = {};
-    if (!headers.Authorization && process.env.TMDB_KEY)
-      params.api_key = process.env.TMDB_KEY;
-    const { data } = await fetchWithRetry(
-      `${TMDB_BASE}/trending/all/day`,
-      params,
-      headers,
+    const { results, total_pages } = await fetchPaginatedFromTmdb(
+      `trending/${type}/${timeWindow}`,
+      page,
+      24,
+      type === "all" ? "movie" : type,
     );
-    const filtered = (data.results || [])
-      .filter((item: any) => item.media_type !== "person")
-      .filter((item: any) => item.poster_path)
-      .filter(isReleasedAndModern);
     res.json({
-      results: filtered.map((item: any) =>
-        formatMediaItem(item, item.media_type),
-      ),
+      page,
+      totalPages: total_pages,
+      results,
     });
   } catch (err: any) {
-    res.status(200).json({ results: [] });
+    console.error("Trending Error:", err.message);
+    res.status(200).json({ page, totalPages: 1, results: [] });
+  }
+};
+
+const getNewReleases = async (req: Request, res: Response): Promise<void> => {
+  const page = Number(req.query.page) || 1;
+  const rawType = (req.query.type as string) || "all";
+  const type = ["all", "movie", "tv"].includes(rawType.toLowerCase())
+    ? rawType.toLowerCase()
+    : "all";
+  const genre = req.query.genre as string;
+  const sortParam = (req.query.sort as string | undefined)?.toUpperCase();
+  const isNewestSort = sortParam === "NEWEST";
+
+  const today = getTodayDateString();
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+
+  try {
+    if (type === "movie") {
+      const extraParams: any = {
+        "primary_release_date.gte": ninetyDaysAgo,
+        "primary_release_date.lte": today,
+        sort_by: isNewestSort ? "primary_release_date.desc" : "popularity.desc",
+        "vote_count.gte": isNewestSort ? 5 : 15,
+      };
+      if (genre && GENRE_MAP[genre.toLowerCase()]) {
+        extraParams.with_genres = GENRE_MAP[genre.toLowerCase()];
+      }
+      const { results, total_pages } = await fetchPaginatedFromTmdb(
+        "discover/movie",
+        page,
+        24,
+        "movie",
+        extraParams,
+      );
+      res.json({ page, totalPages: total_pages, results });
+      return;
+    }
+
+    if (type === "tv") {
+      const extraParams: any = {
+        "first_air_date.gte": ninetyDaysAgo,
+        "first_air_date.lte": today,
+        sort_by: isNewestSort ? "first_air_date.desc" : "popularity.desc",
+        "vote_count.gte": isNewestSort ? 5 : 15,
+      };
+      if (genre && GENRE_MAP[genre.toLowerCase()]) {
+        extraParams.with_genres = GENRE_MAP[genre.toLowerCase()];
+      }
+      const { results, total_pages } = await fetchPaginatedFromTmdb(
+        "discover/tv",
+        page,
+        24,
+        "tv",
+        extraParams,
+      );
+      res.json({ page, totalPages: total_pages, results });
+      return;
+    }
+
+    // type === "all"
+    const movieParams: any = {
+      "primary_release_date.gte": ninetyDaysAgo,
+      "primary_release_date.lte": today,
+      sort_by: isNewestSort ? "primary_release_date.desc" : "popularity.desc",
+      "vote_count.gte": isNewestSort ? 5 : 15,
+    };
+    const tvParams: any = {
+      "first_air_date.gte": ninetyDaysAgo,
+      "first_air_date.lte": today,
+      sort_by: isNewestSort ? "first_air_date.desc" : "popularity.desc",
+      "vote_count.gte": isNewestSort ? 5 : 15,
+    };
+    if (genre && GENRE_MAP[genre.toLowerCase()]) {
+      movieParams.with_genres = GENRE_MAP[genre.toLowerCase()];
+      tvParams.with_genres = GENRE_MAP[genre.toLowerCase()];
+    }
+
+    const [moviesData, tvData] = await Promise.all([
+      fetchPaginatedFromTmdb("discover/movie", page, 16, "movie", movieParams),
+      fetchPaginatedFromTmdb("discover/tv", page, 16, "tv", tvParams),
+    ]);
+
+    const combined: any[] = [];
+    const maxLen = Math.max(moviesData.results.length, tvData.results.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < moviesData.results.length) combined.push(moviesData.results[i]);
+      if (i < tvData.results.length) combined.push(tvData.results[i]);
+    }
+
+    const total_pages = Math.max(moviesData.total_pages, tvData.total_pages);
+    res.json({ page, totalPages: total_pages, results: combined.slice(0, 24) });
+  } catch (err: any) {
+    console.error("New Releases Error:", err.message);
+    res.status(200).json({ page, totalPages: 1, results: [] });
   }
 };
 
@@ -661,6 +762,7 @@ export default {
   getTVDetails,
   getTVSeason,
   getTrending,
+  getNewReleases,
   getGenres,
   getPerson,
 };
