@@ -23,6 +23,10 @@ const allowedOrigins = [
   "http://www.animextv.tech",
   "http://localhost:5001",
   "https://d686fea1-streamxtv.hybrows.workers.dev",
+  "https://streamxtv.sbs",
+  "https://www.streamxtv.sbs",
+  "http://streamxtv.sbs",
+  "http://www.streamxtv.sbs",
 ];
 
 app.use((req, _res, next) => {
