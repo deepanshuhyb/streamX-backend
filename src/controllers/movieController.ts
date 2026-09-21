@@ -53,8 +53,10 @@ const isReleasedAndModern = (item: any): boolean => {
   return true;
 };
 
+const TMDB_KEY = process.env.TMDB_KEY || "f45d389b96e563c12393f298321a0c61";
+
 const getAuthHeaders = (): Record<string, string> => {
-  const token = process.env.TMDB_API_READ_ACCESS_TOKEN || process.env.TMDB_KEY;
+  const token = process.env.TMDB_API_READ_ACCESS_TOKEN || TMDB_KEY;
   if (!token) return {};
   if (process.env.TMDB_API_READ_ACCESS_TOKEN) {
     return {
@@ -192,8 +194,8 @@ const fetchPaginatedFromTmdb = async (
 
   const headers = getAuthHeaders();
   const baseParams: any = { include_adult: false, ...extraParams };
-  if (!headers.Authorization && process.env.TMDB_KEY) {
-    baseParams.api_key = process.env.TMDB_KEY;
+  if (!headers.Authorization && TMDB_KEY) {
+    baseParams.api_key = TMDB_KEY;
   }
 
   // Fetch both pages concurrently
@@ -252,8 +254,8 @@ const searchGlobal = async (req: Request, res: Response): Promise<void> => {
   try {
     const headers = getAuthHeaders();
     const params: any = { query, include_adult: false, page: 1 };
-    if (!headers.Authorization && process.env.TMDB_KEY)
-      params.api_key = process.env.TMDB_KEY;
+    if (!headers.Authorization && TMDB_KEY)
+      params.api_key = TMDB_KEY;
     const { data } = await fetchWithRetry(
       `${TMDB_BASE}/search/multi`,
       params,
@@ -405,8 +407,8 @@ const getMovieDetails = async (req: Request, res: Response): Promise<void> => {
   try {
     const headers = getAuthHeaders();
     const params: any = { append_to_response: "release_dates,credits,videos" };
-    if (!headers.Authorization && process.env.TMDB_KEY)
-      params.api_key = process.env.TMDB_KEY;
+    if (!headers.Authorization && TMDB_KEY)
+      params.api_key = TMDB_KEY;
     const { data } = await fetchWithRetry(
       `${TMDB_BASE}/movie/${id}`,
       params,
@@ -465,8 +467,8 @@ const getTVDetails = async (req: Request, res: Response): Promise<void> => {
     const params: any = {
       append_to_response: "content_ratings,credits,videos",
     };
-    if (!headers.Authorization && process.env.TMDB_KEY)
-      params.api_key = process.env.TMDB_KEY;
+    if (!headers.Authorization && TMDB_KEY)
+      params.api_key = TMDB_KEY;
     const { data } = await fetchWithRetry(
       `${TMDB_BASE}/tv/${id}`,
       params,
@@ -524,8 +526,8 @@ const getTVSeason = async (req: Request, res: Response): Promise<void> => {
   try {
     const headers = getAuthHeaders();
     const params: any = {};
-    if (!headers.Authorization && process.env.TMDB_KEY)
-      params.api_key = process.env.TMDB_KEY;
+    if (!headers.Authorization && TMDB_KEY)
+      params.api_key = TMDB_KEY;
     const { data } = await fetchWithRetry(
       `${TMDB_BASE}/tv/${id}/season/${seasonNumber}`,
       params,
@@ -693,8 +695,8 @@ const getPerson = async (req: Request, res: Response): Promise<void> => {
   try {
     const headers = getAuthHeaders();
     const params: any = { append_to_response: "combined_credits" };
-    if (!headers.Authorization && process.env.TMDB_KEY)
-      params.api_key = process.env.TMDB_KEY;
+    if (!headers.Authorization && TMDB_KEY)
+      params.api_key = TMDB_KEY;
     const { data } = await fetchWithRetry(
       `${TMDB_BASE}/person/${id}`,
       params,
