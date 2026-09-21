@@ -27,6 +27,9 @@ const allowedOrigins = [
   "https://www.streamxtv.sbs",
   "http://streamxtv.sbs",
   "http://www.streamxtv.sbs",
+  "https://api.streamxtv.sbs",
+  "http://localhost:3000",
+  "http://localhost:5173",
 ];
 
 app.use((req, _res, next) => {

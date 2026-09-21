@@ -1,0 +1,15 @@
+# Caddyfile for api.streamxtv.sbs
+# Caddy automatically provisions and renews Let's Encrypt SSL certificates.
+
+api.streamxtv.sbs {
+    # Reverse proxy to the StreamX backend Docker container
+    reverse_proxy 127.0.0.1:3000
+
+    # Optional compression
+    encode gzip zstd
+
+    # Logging
+    log {
+        output file /var/log/caddy/streamx_access.log
+    }
+}

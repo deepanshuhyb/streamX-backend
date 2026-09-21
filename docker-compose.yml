@@ -1,0 +1,19 @@
+services:
+  streamx-backend:
+    build: .
+    container_name: streamx-backend
+    restart: unless-stopped
+    # Bind to 127.0.0.1 so traffic is only accessible via the local reverse proxy (Caddy/Nginx)
+    # If you want to test directly via public IP:PORT, change to "3000:3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1024M

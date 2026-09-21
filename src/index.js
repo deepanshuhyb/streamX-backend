@@ -27,8 +27,11 @@ const PING_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
 const KEEP_ALIVE_REQUEST_TIMEOUT_MS = 10 * 1000; // 10 seconds
 
 function startKeepAlive(port) {
-  const baseUrl =
-    process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
+  if (!process.env.RENDER_EXTERNAL_URL) {
+    console.log("[keep-alive] Self-ping disabled (not on Render / no RENDER_EXTERNAL_URL set)");
+    return;
+  }
+  const baseUrl = process.env.RENDER_EXTERNAL_URL;
   const pingUrl = `${baseUrl}/health`;
 
   setInterval(() => {
