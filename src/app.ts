@@ -27,6 +27,10 @@ const allowedOrigins = [
   "https://www.streamxtv.sbs",
   "http://streamxtv.sbs",
   "http://www.streamxtv.sbs",
+  "https://streamxtv.pro",
+  "https://www.streamxtv.pro",
+  "http://streamxtv.pro",
+  "http://www.streamxtv.pro",
   "https://api.streamxtv.sbs",
   "http://localhost:3000",
   "http://localhost:5173",
@@ -53,10 +57,10 @@ const corsOptions: CorsOptions = {
       return callback(null, true);
     }
 
-    // Match animextv.tech and all variants (including subdomains and workers.dev environments)
-    // const animextvPattern = /^https?:\/\/([a-z0-9-]+\.)*animextv\.(tech|hybrows\.workers\.dev)$/i;
+    // Match streamxtv.pro and all variants (http, https, www, subdomains, ports)
+    const streamxtvProPattern = /^https?:\/\/([a-z0-9-]+\.)*streamxtv\.pro(:[0-9]+)?$/i;
 
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin) || streamxtvProPattern.test(origin)) {
       console.log("[cors] Allowed by CORS");
       return callback(null, true);
     }
